@@ -3,17 +3,23 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+    <!-- ClawNest: a three-stroke claw swipe -->
     <path
-        android:pathData="M40,42 L56,54 L40,66"
+        android:pathData="M33,29 C40,48 44,66 53,83"
         android:strokeColor="#22C55E"
-        android:strokeWidth="7"
+        android:strokeWidth="8.5"
         android:strokeLineCap="round"
-        android:strokeLineJoin="round"
         android:fillColor="#00000000" />
     <path
-        android:pathData="M58,68 L72,68"
+        android:pathData="M50,25 C57,46 61,65 69,85"
         android:strokeColor="#22C55E"
-        android:strokeWidth="7"
+        android:strokeWidth="8.5"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000" />
+    <path
+        android:pathData="M67,29 C72,48 76,65 83,81"
+        android:strokeColor="#22C55E"
+        android:strokeWidth="8.5"
         android:strokeLineCap="round"
         android:fillColor="#00000000" />
 </vector>
