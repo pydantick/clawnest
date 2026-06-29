@@ -1,13 +1,21 @@
-# ClawNest
+<p align="center">
+  <img src="docs/screenshots/logo.png" alt="ClawNest" width="120">
+</p>
 
-**A pocket remote for your own AI coding agents — self-hosted on your VPS.**
-**Карманный пульт к твоим ИИ-агентам — на твоём собственном сервере.**
+<h1 align="center">ClawNest</h1>
+
+<p align="center">
+  <b>A pocket remote for your own AI coding agents — self-hosted on your VPS.</b><br>
+  <b>Карманный пульт к твоим ИИ-агентам — на твоём собственном сервере.</b>
+</p>
 
 ClawNest is a native Android client to a Claude-powered agent daemon that runs on **your**
 server. The phone is a thin client; the agent, its tools and your history live on your VPS.
 No middleman cloud, no domain, no public port — everything rides inside an SSH tunnel.
 
-🌐 [English](#english) · [Русский](#русский) · 📄 [MIT License](LICENSE)
+<p align="center">
+  🌐 <a href="#english">English</a> · <a href="#русский">Русский</a> · 📄 <a href="LICENSE">MIT License</a>
+</p>
 
 <p align="center">
   <img src="docs/screenshots/chat.jpg" alt="Chat with an agent persona" width="270">
