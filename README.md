@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/screenshots/logo.png" alt="ClawNest" width="120">
+  <img src="docs/screenshots/clawnest-icon.png" alt="ClawNest" width="120">
 </p>
 
 <h1 align="center">ClawNest</h1>
