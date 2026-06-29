@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# openclaw-notify [--conv CONV] TEXT...
+# Queues a proactive message to the user. The openclaw-agent watcher delivers it to the app.
+conv="${OPENCLAW_CONV:-}"
+if [ "$1" = "--conv" ]; then conv="$2"; shift 2; fi
+text="$*"
+exec python3 - "$conv" "$text" <<'PY'
+import json, sys, os, time
+conv, text = sys.argv[1], sys.argv[2]
+os.makedirs("/var/lib/openclaw", exist_ok=True)
+with open("/var/lib/openclaw/outbox.jsonl", "a", encoding="utf-8") as f:
+    f.write(json.dumps({"conv": conv, "text": text, "ts": time.time()}, ensure_ascii=False) + "\n")
+print("queued")
+PY

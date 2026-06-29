@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- Downloaded/received attachments live in the app cache; FileProvider hands them
+         to a viewer/share target via a content:// uri. -->
+    <cache-path name="cache" path="." />
+    <files-path name="files" path="." />
+</paths>

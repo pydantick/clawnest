@@ -1,0 +1,36 @@
+# ── secrets / signing (NEVER commit) ─────────────────────────────
+keystore.properties
+*.jks
+*.keystore
+
+# ── Android build ────────────────────────────────────────────────
+android/local.properties
+android/.gradle/
+android/build/
+android/app/build/
+android/captures/
+*.apk
+*.aab
+
+# ── Gradle ───────────────────────────────────────────────────────
+.gradle/
+build/
+
+# ── Python backend ───────────────────────────────────────────────
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+dist/
+
+# ── IDE / OS ─────────────────────────────────────────────────────
+.idea/
+*.iml
+.DS_Store
+.claude/
+
+# ── legacy prototypes (kept locally, not part of the published app) ──
+/app/
+/agent/
