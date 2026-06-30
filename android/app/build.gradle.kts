@@ -116,7 +116,7 @@ compose.desktop {
         nativeDistributions {
             targetFormats(TargetFormat.Dmg)
             packageName = "ClawNest"
-            packageVersion = "1.0.0"
+            packageVersion = "1.1.0"
         }
     }
 }

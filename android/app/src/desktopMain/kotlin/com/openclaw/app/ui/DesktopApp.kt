@@ -29,6 +29,7 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AttachFile
+import androidx.compose.material.icons.outlined.ViewSidebar
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -40,12 +41,18 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -78,12 +85,12 @@ private val DESK_TOOLS = listOf("bash", "ssh", "nmap", "sqlmap", "git", "docker"
 
 /** Desktop root: same connection gating as the phone, but the main app is the 3-pane shell. */
 @Composable
-fun DesktopApp(vm: AppViewModel) {
+fun DesktopApp(vm: AppViewModel, paletteOpen: MutableState<Boolean>) {
     val ready = vm.conn.value == ConnState.Ready
     val haveUi = vm.personas.isNotEmpty()
     when {
         vm.showForm.value -> ConnectScreen(vm)
-        ready || haveUi -> DesktopShell(vm, reconnecting = !ready)
+        ready || haveUi -> DesktopShell(vm, reconnecting = !ready, paletteOpen = paletteOpen)
         vm.hasSavedCreds() -> DesktopSplash(vm)
         else -> ConnectScreen(vm)
     }
@@ -110,11 +117,12 @@ private fun DesktopSplash(vm: AppViewModel) {
 }
 
 @Composable
-private fun DesktopShell(vm: AppViewModel, reconnecting: Boolean) {
+private fun DesktopShell(vm: AppViewModel, reconnecting: Boolean, paletteOpen: MutableState<Boolean>) {
     val accent = personaColor(vm.currentPersona()?.themeColor)
     var screen by remember { mutableStateOf("chat") } // "chat" | "settings"
     var rightShown by remember { mutableStateOf(true) }
-    Column(Modifier.fillMaxSize().background(Bg)) {
+    Box(Modifier.fillMaxSize()) {
+      Column(Modifier.fillMaxSize().background(Bg)) {
         DesktopTopBar(vm, accent)
         if (reconnecting) ReconnectStrip()
         Row(Modifier.fillMaxSize()) {
@@ -133,6 +141,11 @@ private fun DesktopShell(vm: AppViewModel, reconnecting: Boolean) {
                 PersonaPanel(vm, accent)
             }
         }
+      }
+      if (paletteOpen.value) {
+          CommandPalette(vm, accent, onScreen = { screen = it },
+              onTogglePanel = { rightShown = !rightShown }, onClose = { paletteOpen.value = false })
+      }
     }
 }
 
@@ -285,11 +298,11 @@ private fun ChatCenter(vm: AppViewModel, accent: Color, rightShown: Boolean, onT
             }
             ModelBadge(vm.modelFor(persona?.id), accent)
             Spacer(Modifier.width(10.dp))
-            Box(Modifier.size(24.dp).clip(RoundedCornerShape(7.dp))
+            Box(Modifier.size(28.dp).clip(RoundedCornerShape(8.dp))
                 .background(if (rightShown) accent.copy(alpha = 0.16f) else Color.Transparent)
-                .border(1.dp, PanelLine, RoundedCornerShape(7.dp)).clickable { onToggleRight() },
+                .border(1.dp, PanelLine, RoundedCornerShape(8.dp)).clickable { onToggleRight() },
                 contentAlignment = Alignment.Center) {
-                Text("▭", color = if (rightShown) accent else TextDim, fontSize = 12.sp)
+                Icon(Icons.Outlined.ViewSidebar, s.cmdPanel, tint = if (rightShown) accent else TextDim, modifier = Modifier.size(16.dp))
             }
         }
         Box(Modifier.fillMaxWidth().height(1.dp).background(PanelLine))
@@ -561,4 +574,79 @@ private fun SettingsCenter(vm: AppViewModel, accent: Color) {
         Spacer(Modifier.height(24.dp))
         Text("ClawNest for macOS · MIT · ${s.aboutNoTrackers}", color = TextDim, fontSize = 12.sp)
     }
+}
+
+// ---------- ⌘K command palette ----------
+
+private data class Cmd(val label: String, val hint: String, val run: () -> Unit)
+
+@Composable
+private fun CommandPalette(vm: AppViewModel, accent: Color, onScreen: (String) -> Unit, onTogglePanel: () -> Unit, onClose: () -> Unit) {
+    val s = LocalStrings.current
+    var q by remember { mutableStateOf("") }
+    var sel by remember { mutableStateOf(0) }
+    val fr = remember { FocusRequester() }
+
+    val cmds = buildList {
+        vm.personas.forEach { p -> add(Cmd("${s.cmdOpen} ${p.name}", s.cmdHintAgent) { vm.selectPersona(p.id); onScreen("chat"); onClose() }) }
+        vm.projects.forEach { pr -> add(Cmd(pr.name, s.cmdHintDialog) { vm.selectProject(pr.id); onScreen("chat"); onClose() }) }
+        add(Cmd(s.settingsTitle, "⚙") { onScreen("settings"); onClose() })
+        add(Cmd(s.cmdPanel, "⌥") { onTogglePanel(); onClose() })
+        add(Cmd(s.cmdLang, "RU/EN") { vm.setLang(if (vm.lang.value == "en") "ru" else "en"); onClose() })
+        add(Cmd(s.disconnect, "⏻") { vm.disconnect(); onClose() })
+    }
+    val filtered = cmds.filter { q.isBlank() || it.label.contains(q, true) || it.hint.contains(q, true) }
+    val selClamped = sel.coerceIn(0, (filtered.size - 1).coerceAtLeast(0))
+
+    Box(
+        Modifier.fillMaxSize().background(Color(0xAA000000))
+            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onClose() },
+        contentAlignment = Alignment.TopCenter,
+    ) {
+        Column(
+            Modifier.padding(top = 90.dp).width(560.dp).clip(RoundedCornerShape(14.dp))
+                .background(Surface).border(1.dp, BorderC, RoundedCornerShape(14.dp))
+                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {},
+        ) {
+            OutlinedTextField(
+                value = q, onValueChange = { q = it; sel = 0 },
+                placeholder = { Text(s.cmdSearch, color = TextDim) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth().focusRequester(fr).onPreviewKeyEvent { e ->
+                    if (e.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                    when (e.key) {
+                        Key.DirectionDown -> { sel = (selClamped + 1).coerceAtMost(filtered.size - 1); true }
+                        Key.DirectionUp -> { sel = (selClamped - 1).coerceAtLeast(0); true }
+                        Key.Enter -> { filtered.getOrNull(selClamped)?.run?.invoke(); true }
+                        Key.Escape -> { onClose(); true }
+                        else -> false
+                    }
+                },
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = TextC, unfocusedTextColor = TextC,
+                    focusedContainerColor = Surface, unfocusedContainerColor = Surface,
+                    focusedBorderColor = Color.Transparent, unfocusedBorderColor = Color.Transparent, cursorColor = accent,
+                ),
+            )
+            Box(Modifier.fillMaxWidth().height(1.dp).background(BorderC))
+            if (filtered.isEmpty()) {
+                Text(s.cmdEmpty, color = TextDim, fontSize = 13.sp, modifier = Modifier.padding(16.dp))
+            } else {
+                LazyColumn(Modifier.heightIn(max = 340.dp)) {
+                    itemsIndexed(filtered) { i, c ->
+                        Row(
+                            Modifier.fillMaxWidth()
+                                .background(if (i == selClamped) accent.copy(alpha = 0.16f) else Color.Transparent)
+                                .clickable { c.run() }.padding(horizontal = 16.dp, vertical = 11.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(c.label, color = TextC, fontSize = 14.sp, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(c.hint, color = TextDim, fontSize = 12.sp)
+                        }
+                    }
+                }
+            }
+        }
+    }
+    LaunchedEffect(Unit) { fr.requestFocus() }
 }

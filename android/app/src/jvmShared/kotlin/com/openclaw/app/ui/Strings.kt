@@ -150,6 +150,15 @@ class Strings(val en: Boolean) {
     val reconnectBtn = p("Переподключить", "Reconnect")
     val disconnect = p("Отключиться", "Disconnect")
     val aboutNoTrackers = p("без трекеров", "no trackers")
+
+    // command palette (⌘K)
+    val cmdSearch = p("Команда…", "Command…")
+    val cmdOpen = p("Открыть", "Open")
+    val cmdPanel = p("Боковая панель", "Side panel")
+    val cmdLang = p("Язык RU / EN", "Language RU / EN")
+    val cmdHintAgent = p("агент", "agent")
+    val cmdHintDialog = p("диалог", "dialog")
+    val cmdEmpty = p("Ничего не найдено", "No matches")
 }
 
 val LocalStrings = staticCompositionLocalOf { Strings(false) }
