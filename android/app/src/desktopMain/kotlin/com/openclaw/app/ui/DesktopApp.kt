@@ -48,7 +48,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.isShiftPressed
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -134,13 +141,17 @@ private fun DesktopShell(vm: AppViewModel, reconnecting: Boolean) {
 @Composable
 private fun DesktopTopBar(vm: AppViewModel, accent: Color) {
     val name = vm.currentPersona()?.name ?: LocalStrings.current.agent
-    Box(Modifier.fillMaxWidth().background(Rail).height(38.dp).padding(horizontal = 14.dp)) {
+    // No horizontal padding: the title sits at the true window centre; the macOS traffic
+    // lights overlay the empty left edge (fullWindowContent), so this reads as one bar.
+    Box(Modifier.fillMaxWidth().background(Rail).height(44.dp)) {
         Row(Modifier.align(Alignment.Center), verticalAlignment = Alignment.CenterVertically) {
             Text(name, color = TextC, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
             Text("  ·  ${vm.host.value.ifBlank { "vps" }}", color = TextDim, fontSize = 13.sp, fontFamily = FontFamily.Monospace)
             Spacer(Modifier.width(8.dp))
             Box(Modifier.size(7.dp).clip(CircleShape).background(if (vm.conn.value == ConnState.Ready) Green else Orange))
         }
+        Text("⌘K", color = TextDim, fontSize = 12.sp, fontFamily = FontFamily.Monospace,
+            modifier = Modifier.align(Alignment.CenterEnd).padding(end = 16.dp))
     }
 }
 
@@ -164,9 +175,9 @@ private fun PersonaRail(vm: AppViewModel, accent: Color, screen: String, onScree
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         // brand mark
-        Box(Modifier.size(34.dp).clip(RoundedCornerShape(11.dp)).background(Green.copy(alpha = 0.16f))
-            .border(1.dp, Green.copy(alpha = 0.5f), RoundedCornerShape(11.dp)), contentAlignment = Alignment.Center) {
-            Text("⌘", color = Green, fontSize = 16.sp)
+        Box(Modifier.size(44.dp).clip(RoundedCornerShape(13.dp)).background(Green.copy(alpha = 0.16f))
+            .border(1.dp, Green.copy(alpha = 0.5f), RoundedCornerShape(13.dp)), contentAlignment = Alignment.Center) {
+            Text("⌘", color = Green, fontSize = 20.sp)
         }
         Spacer(Modifier.height(2.dp))
         vm.personas.forEach { p ->
@@ -185,7 +196,7 @@ private fun PersonaRail(vm: AppViewModel, accent: Color, screen: String, onScree
         Spacer(Modifier.weight(1f))
         val gear = screen == "settings"
         Box(
-            Modifier.size(40.dp).clip(RoundedCornerShape(12.dp))
+            Modifier.size(44.dp).clip(RoundedCornerShape(13.dp))
                 .background(if (gear) accent.copy(alpha = 0.18f) else Color.Transparent)
                 .clickable { onScreen("settings") },
             contentAlignment = Alignment.Center,
@@ -274,11 +285,11 @@ private fun ChatCenter(vm: AppViewModel, accent: Color, rightShown: Boolean, onT
             }
             ModelBadge(vm.modelFor(persona?.id), accent)
             Spacer(Modifier.width(10.dp))
-            Box(Modifier.size(30.dp).clip(RoundedCornerShape(8.dp))
+            Box(Modifier.size(24.dp).clip(RoundedCornerShape(7.dp))
                 .background(if (rightShown) accent.copy(alpha = 0.16f) else Color.Transparent)
-                .border(1.dp, PanelLine, RoundedCornerShape(8.dp)).clickable { onToggleRight() },
+                .border(1.dp, PanelLine, RoundedCornerShape(7.dp)).clickable { onToggleRight() },
                 contentAlignment = Alignment.Center) {
-                Text("▭", color = if (rightShown) accent else TextDim, fontSize = 15.sp)
+                Text("▭", color = if (rightShown) accent else TextDim, fontSize = 12.sp)
             }
         }
         Box(Modifier.fillMaxWidth().height(1.dp).background(PanelLine))
@@ -320,38 +331,39 @@ private fun ChatCenter(vm: AppViewModel, accent: Color, rightShown: Boolean, onT
             }
         }
 
-        // input
+        // input — attach lives inside the field; ⏎ sends, Shift+⏎ = newline (matches the mockup)
+        fun fire() {
+            if (!vm.busy.value && (input.isNotBlank() || vm.staged.isNotEmpty())) { val t = input; input = ""; vm.send(t) }
+        }
         Row(Modifier.fillMaxWidth().padding(horizontal = 22.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
             OutlinedTextField(
                 value = input, onValueChange = { input = it },
                 placeholder = { Text("${s.messageHint} · ⏎", color = TextDim) },
-                maxLines = 6, modifier = Modifier.weight(1f), shape = RoundedCornerShape(14.dp),
+                maxLines = 6,
+                modifier = Modifier.weight(1f).onPreviewKeyEvent { e ->
+                    if (e.type == KeyEventType.KeyDown && e.key == Key.Enter && !e.isShiftPressed) { fire(); true } else false
+                },
+                shape = RoundedCornerShape(14.dp),
+                trailingIcon = {
+                    Box {
+                        Icon(Icons.Outlined.AttachFile, s.attach, tint = TextDim,
+                            modifier = Modifier.clickable { attachMenu = true }.padding(end = 6.dp).size(22.dp))
+                        androidx.compose.material3.DropdownMenu(expanded = attachMenu, onDismissRequest = { attachMenu = false }) {
+                            androidx.compose.material3.DropdownMenuItem(text = { Text(s.attachPhoto) }, onClick = { attachMenu = false; pickPhoto() })
+                            androidx.compose.material3.DropdownMenuItem(text = { Text(s.attachFile) }, onClick = { attachMenu = false; pickFile() })
+                        }
+                    }
+                },
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedTextColor = TextC, unfocusedTextColor = TextC,
                     focusedContainerColor = SurfaceAlt, unfocusedContainerColor = SurfaceAlt,
                     focusedBorderColor = BorderC, unfocusedBorderColor = BorderC, cursorColor = accent,
                 ),
             )
-            Spacer(Modifier.width(8.dp))
-            Box {
-                Box(Modifier.size(46.dp).clip(RoundedCornerShape(13.dp)).background(SurfaceAlt)
-                    .border(1.dp, BorderC, RoundedCornerShape(13.dp)).clickable { attachMenu = true },
-                    contentAlignment = Alignment.Center) {
-                    Icon(Icons.Outlined.AttachFile, s.attach, tint = TextDim, modifier = Modifier.size(20.dp))
-                }
-                androidx.compose.material3.DropdownMenu(expanded = attachMenu, onDismissRequest = { attachMenu = false }) {
-                    androidx.compose.material3.DropdownMenuItem(text = { Text(s.attachPhoto) }, onClick = { attachMenu = false; pickPhoto() })
-                    androidx.compose.material3.DropdownMenuItem(text = { Text(s.attachFile) }, onClick = { attachMenu = false; pickFile() })
-                }
-            }
             if (vm.busy.value) {
                 Spacer(Modifier.width(8.dp))
                 Button(onClick = { vm.interrupt() }, shape = RoundedCornerShape(13.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = ErrorC)) { Text(s.stop) }
-            } else if (input.isNotBlank() || vm.staged.isNotEmpty()) {
-                Spacer(Modifier.width(8.dp))
-                Button(onClick = { val t = input; input = ""; vm.send(t) }, shape = RoundedCornerShape(13.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = accent, contentColor = Color.Black)) { Text("▶") }
             }
         }
     }
@@ -432,8 +444,22 @@ private fun PersonaPanel(vm: AppViewModel, accent: Color) {
                 colors = ButtonDefaults.buttonColors(containerColor = accent, contentColor = Color.Black)) { Text(s.save) }
         }
 
+        // all-tools switch — label + toggle on one row, subtitle full-width below
+        Row(Modifier.fillMaxWidth().padding(top = 20.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(s.allTools.uppercase(), color = TextDim, fontSize = 11.sp, letterSpacing = 1.sp, modifier = Modifier.weight(1f))
+            Switch(
+                checked = persona.allTools,
+                onCheckedChange = { vm.savePersona(persona.copy(allTools = it)) },
+                colors = SwitchDefaults.colors(checkedTrackColor = accent, checkedThumbColor = Color.White),
+            )
+        }
+        Text(s.allToolsSub, color = TextDim, fontSize = 11.sp, modifier = Modifier.fillMaxWidth().padding(top = 2.dp))
+
         PanelLabel(s.allowedTools)
-        FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        FlowRow(
+            Modifier.fillMaxWidth().alpha(if (persona.allTools) 0.4f else 1f),
+            horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
             DESK_TOOLS.forEach { tname ->
                 val on = tname in persona.allowedTools
                 Text(tname, fontFamily = FontFamily.Monospace, fontSize = 12.sp,

@@ -1,11 +1,14 @@
 package com.openclaw.app.ui
 
-import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.LineHeightStyle
 
 // Base dark palette (matches the mockups).
 val Bg = Color(0xFF0A0B0D)
@@ -51,11 +54,17 @@ private val DarkColors = darkColorScheme(
 
 @Composable
 fun OpenClawTheme(content: @Composable () -> Unit) {
-    @Suppress("UNUSED_EXPRESSION")
-    isSystemInDarkTheme()
-    MaterialTheme(
-        colorScheme = DarkColors,
-        typography = Typography(),
-        content = content,
-    )
+    MaterialTheme(colorScheme = DarkColors, typography = Typography()) {
+        // Center each glyph within its line box and trim the font's extra leading, so text
+        // sits visually centred in badges/chips/bubbles/list items instead of low.
+        val centered = LocalTextStyle.current.merge(
+            TextStyle(
+                lineHeightStyle = LineHeightStyle(
+                    alignment = LineHeightStyle.Alignment.Center,
+                    trim = LineHeightStyle.Trim.Both,
+                ),
+            ),
+        )
+        CompositionLocalProvider(LocalTextStyle provides centered, content = content)
+    }
 }

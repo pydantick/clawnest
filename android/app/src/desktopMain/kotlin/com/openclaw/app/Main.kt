@@ -18,7 +18,16 @@ fun main() = application {
     val vm = remember { AppViewModel() }
     LaunchedEffect(Unit) { vm.autoConnect() }
     val state = rememberWindowState(size = DpSize(1240.dp, 820.dp))
-    Window(onCloseRequest = ::exitApplication, title = "ClawNest", state = state) {
+    Window(onCloseRequest = ::exitApplication, title = "", state = state) {
+        // macOS: let the dark content extend under a transparent title bar so the native
+        // traffic-lights sit inside our top bar (single unified bar, like the mockup).
+        LaunchedEffect(Unit) {
+            runCatching {
+                window.rootPane.putClientProperty("apple.awt.fullWindowContent", true)
+                window.rootPane.putClientProperty("apple.awt.transparentTitleBar", true)
+                window.rootPane.putClientProperty("apple.awt.windowTitleVisible", false)
+            }
+        }
         CompositionLocalProvider(LocalStrings provides Strings(vm.lang.value == "en")) {
             OpenClawTheme { DesktopApp(vm) }
         }

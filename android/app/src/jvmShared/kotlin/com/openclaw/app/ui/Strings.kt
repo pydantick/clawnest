@@ -102,7 +102,7 @@ class Strings(val en: Boolean) {
     val encryptHistorySub = p("SQLite + ключ из Keystore", "SQLite + key from Keystore")
     val auditLog = p("Вести audit-log", "Keep an audit log")
     val auditLogSub = p("Логировать команды на VPS", "Log commands run on the VPS")
-    val about = p("ClawNest · v1.0 · MIT", "ClawNest · v1.0 · MIT")
+    val about = p("ClawNest · v1.1 · MIT", "ClawNest · v1.1 · MIT")
     val aboutSub = p("опенсорс · без трекеров · без подписок", "open-source · no trackers · no subscriptions")
 
     // persona editor

@@ -216,6 +216,12 @@ async def _run_once(session, persona, spec, user_text, conv, cwd_path, resume_id
     used_model: str | None = None
     pending: dict = {}
     question_ids: set = set()  # AskUserQuestion tool ids — rendered as interactive cards, not raw blocks
+    # Headless Claude Code can't block on AskUserQuestion: it gets an auto "user didn't answer"
+    # result and barrels on ("you closed the window…"). Once a question is posed we stop
+    # forwarding the rest of this turn's output — the card stays interactive and the user's tap
+    # arrives as the next prompt. The turn still completes (ResultMessage), so the session id is
+    # saved and context is preserved for that follow-up.
+    asked = False
     try:
         async with ClaudeSDKClient(options=options) as client:
             session.sdk_client = client
@@ -232,7 +238,8 @@ async def _run_once(session, persona, spec, user_text, conv, cwd_path, resume_id
                             if m:
                                 used_model = m
                         elif ev.get("type") == "content_block_delta":
-                            await _delta(ev, send)
+                            if not asked:
+                                await _delta(ev, send)
 
                 elif isinstance(msg, AssistantMessage):
                     for b in msg.content:
@@ -243,8 +250,12 @@ async def _run_once(session, persona, spec, user_text, conv, cwd_path, resume_id
                             # tool block (the app answers via a follow-up message).
                             if b.name == "AskUserQuestion":
                                 question_ids.add(b.id)
-                                await send({"type": "question", "id": b.id, "questions": inp.get("questions", [])})
+                                if not asked:
+                                    asked = True
+                                    await send({"type": "question", "id": b.id, "questions": inp.get("questions", [])})
                                 continue
+                            if asked:
+                                continue  # suppress any fallback actions taken after the question
                             cmd = inp.get("command")
                             shown = cmd if cmd is not None else _short(inp)
                             try:
@@ -258,9 +269,9 @@ async def _run_once(session, persona, spec, user_text, conv, cwd_path, resume_id
                     for b in getattr(msg, "content", []):
                         if isinstance(b, ToolResultBlock):
                             tid = getattr(b, "tool_use_id", None)
-                            if tid in question_ids:
+                            if asked or tid in question_ids:
                                 question_ids.discard(tid)
-                                continue  # suppress the auto "did not answer" result
+                                continue  # suppress the auto "did not answer" result + any follow-on
                             out = _tool_result_text(b.content)
                             code = 1 if b.is_error else 0
                             cmd = pending.pop(tid, "?")
